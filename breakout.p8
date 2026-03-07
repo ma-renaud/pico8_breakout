@@ -3,6 +3,7 @@ version 43
 __lua__
 #include main.lua
 #include breakout.lua
+#include collidable.lua
 #include 2d_utils.lua
 #include math.lua
 
