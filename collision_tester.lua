@@ -1,36 +1,96 @@
 function _init()
     cls()
 
+    -- enable mouse
     poke(0x5f2d, 1)
 
-    ball_x = 45
-    ball_y = 50
-    ball_r = 2
-    ball_dx = 2
-    ball_dy = 2
+    init()
 
-    pad_x = 52
-    pad_y = 60
-    pad_w = 24
-    pad_h = 3
-    pad_dx = 0
-    max_dx = 3
-    min_dx = max_dx*-1
-    pad_ddx = 0.4
+    ball_dir = 1
+    ball_paused = true
+    btn_4_pressed = false
+    btn_5_pressed = false
 end
 
 function _update()
     mx = stat(32)
     my = stat(33)
+    mb = stat(34)
 
+    if ball.dragged then
+        if mb > 0 then
+            ball.x = mx + ball.offset_x
+            ball.y = my + ball.offset_y
+        else
+            ball.dragged = false
+        end
+    else
+        -- Check for a new click on the object
+        if mb > 0 then 
+            if mx >= (ball.x - ball.r) and mx <= (ball.x + 2 * ball.r) 
+                      and my >= (ball.y - ball.r) and my <= (ball.y + 2 * ball.r) then
+                -- Calculate offset to drag from the clicked point, not the top-left corner
+                ball.offset_x = ball.x - mx
+                ball.offset_y = ball.y - my
+            else
+                ball.x = mx
+                ball.y = my
+                ball.offset_x = 0
+                ball.offset_y = 0
+            end
+
+            ball.dragged = true
+        end
+    end
+
+    -- Manually orient the ball
+    if btn(5) and not btn_5_pressed then
+        btn_5_pressed = true
+
+        ball_dir = (ball_dir + 1)%2
+        if ball_dir == 0 then
+            ball.dx = ball.dx * -1
+        else
+            ball.dy = ball.dy * -1
+        end
+    end
+
+    -- Pause/Unpause ball movement
+    if btn(4) and not btn_4_pressed then
+        btn_4_pressed = true
+        if ball_paused then
+            ball_paused = false
+        else
+            ball_paused = true
+        end 
+    end    
+
+    -- Button debounce reset
+    if btn() == 0 then
+        btn_4_pressed = false
+        btn_5_pressed = false
+    end
+
+    if not ball_paused then
+        move_ball()
+    end
 end
 
 function _draw()
     rectfill(0,0,127,127, 1)
-    rectfill(pad_x, pad_y, pad_x+pad_w, pad_y+pad_h, 7)
-    circfill(ball_x, ball_y, ball_r, 14)
+    rectfill(pad.x, pad.y, pad.x+pad.w, pad.y+pad.h, 7)
+    circfill(ball.x, ball.y, ball.r, 14)
 
-    print("mouse (" .. mx .. ", " .. my .. ")", 8, 8, 7)
+    for collidable in all(walls) do
+        collidable:draw()
+    end
 
-	spr(0,mx-1,my-1)
+    if ball_paused then
+        print("paused", 8, 8, 7)
+    else
+        print("running", 8, 8, 7)
+    end
+
+	spr(0,mx-2,my-2)
+    line(ball.x, ball.y, ball.x + ball.dx * 5, ball.y + ball.dy * 5, 10)
 end
