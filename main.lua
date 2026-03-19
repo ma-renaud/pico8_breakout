@@ -1,6 +1,7 @@
 function _init()
     cls()
     init()
+    cnt = 0
 end
 
 function _update()

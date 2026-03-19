@@ -19,19 +19,6 @@ function init()
     pad = collidables[5]
 end
 
--- bounce the ball when it reach
--- the edge of the screen
-function wall_bounce()
-    if hits(ball.x, 127-ball.r-1, 1+ball.r+1) then
-        sfx(0) -- Rebound sound
-        ball.dx = ball.dx * -1
-    end
-    if hits(ball.y, 127-ball.r-1, 1+ball.r+1) then
-        sfx(0) -- Rebound sound
-        ball.dy = ball.dy * -1
-    end
-end
-
 function move_pad() 
     if btn() ~= prev_btn or btn() == 0 then
         -- decelerate when no button are pressed or if 
@@ -62,17 +49,11 @@ function move_pad()
     prev_btn = btn()
 end
 
-function move_ball()
-    -- Next ball position
-    next_x = ball.x + ball.dx
-    next_y = ball.y + ball.dy
-
-    -- Check for collidables collisions
-    wall_collide = false
+function check_collision(ball)
     collidable_index = nil
     for i = 1, #collidables do
-        ball_collide = rect_collision(next_x - ball.r, next_x + ball.r, 
-                                      next_y - ball.r, next_y + ball.r,
+        ball_collide = rect_collision(ball.x - ball.r, ball.x + ball.r, 
+                                      ball.y - ball.r, ball.y + ball.r,
                                       collidables[i].x, collidables[i].x + collidables[i].w, 
                                       collidables[i].y, collidables[i].y + collidables[i].h)
 
@@ -82,61 +63,72 @@ function move_ball()
         end
     end
 
-    if ball_collide then
-        ball_approach_v1(ball, collidables[collidable_index])
-    else
-        ball.x += ball.dx
-        ball.y += ball.dy
-    end
-
-    -- if not ball_collide then        
-    --     if (ball.dy > 0 and ball.y > pad.y-4*ball.r) then
-    --         dist = flr(circ_to_rect_distance(ball.x, ball.y, ball.y, pad.x, pad.x+pad.w, pad.y, pad.y))-ball.r
-    --         ball.x += ball.dx
-
-    --         if dist < ball.r and dist > 0 then
-    --             ball.y += dist - 1
-    --             ball_paused = true
-    --             printh("ballx: " .. ball.x .. " bally: " .. ball.y, "log.txt")
-    --             ball.dy = ball.dy * -1
-    --         else
-    --             ball.y += ball.dy
-    --         end
-    --     else
-    --         ball.x += ball.dx
-    --         ball.y += ball.dy
-    --     end
-    -- end
-
-    -- wall_bounce()
+    return collidable_index
 end
 
-function ball_approach_v1(ball, collidable)
-    move_x = ball.dx
-    move_y = ball.dy
+function move_ball()
+    -- Next ball position
+    next_x = ball.x + ball.dx
+    next_y = ball.y + ball.dy
 
-    ux = sgn(ball.dx)
-    uy = sgn(ball.dy)
-    while move_x ~= 0 and move_y ~= 0 do
-        next_x = ball.x + ux
-        next_y = ball.y + uy
+    -- Check for collidables collisions on ball+1
+    collidable_index = check_collision({x = next_x, y = next_y, r = ball.r, dx = ball.dx, dy = ball.dy})
+ 
+    -- Collision detected if collidable_index is not nil
+    if collidable_index then
+        -- Approach ball position + 1
+        approach = ball_approach({x = ball.x, y = ball.y, r = ball.r, dx = ball.dx, dy = ball.dy}, collidables[collidable_index])
+        ball.x = approach.next_x
+        ball.y = approach.next_y
+        change_ball_direction(ball, collidables[collidable_index])
+    else
+        next_x2 = next_x + ball.dx
+        next_y2 = next_y + ball.dy
+        -- Check for collidables collisions on ball+2
+        collidable_index = check_collision({x = next_x2, y = next_y2, r = ball.r, dx = ball.dx, dy = ball.dy})
 
-        move_x += ux
-        move_y += uy
+        ball.x += ball.dx
+        ball.y += ball.dy
 
-        ball_collide = rect_collision(next_x - ball.r, next_x + ball.r, 
-                                        next_y - ball.r, next_y + ball.r,
-                                        collidable.x, collidable.x + collidable.w, 
-                                        collidable.y, collidable.y + collidable.h)
-        
-        if ball_collide then
-            change_ball_direction(ball, collidable)
-            break
-        else
-            ball.x += ux
-            ball.y += uy
+        if collidable_index then
+            -- Approach ball position + 2
+            approach = ball_approach({x = next_x, y = next_y, r = ball.r, dx = ball.dx, dy = ball.dy}, collidables[collidable_index])
+            -- Change direction if the ball is just touching the collidable on ball+1
+            if approach.steps == 1 then 
+                change_ball_direction(ball, collidables[collidable_index])     
+            end
         end
     end
+end
+
+function ball_approach(ball, collidable)
+    ux = sgn(ball.dx)
+    uy = sgn(ball.dy)
+
+    local res = {
+        steps = 0,
+        next_x = ball.x,
+        next_y = ball.y
+    }
+
+    ball_collide = false
+    while not ball_collide do
+        res.next_x += ux
+        res.next_y += uy
+        res.steps += 1
+
+        ball_collide = rect_collision(res.next_x - ball.r, res.next_x + ball.r, 
+                                        res.next_y - ball.r, res.next_y + ball.r,
+                                        collidable.x, collidable.x + collidable.w, 
+                                        collidable.y, collidable.y + collidable.h)
+
+        if ball_collide then
+            res.next_x -= ux
+            res.next_y -= uy
+        end
+    end
+
+    return res
 end
 
 function ball_approach_v2(ball, collidable)
