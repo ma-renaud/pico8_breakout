@@ -17,7 +17,7 @@ collidable = {
     draw = function (self)
         rectfill(self.x, self.y, 
                  self.x + self.w, 
-                 self.y + self.h, 7)
+                 self.y + self.h, 0)
     end,
 }
 

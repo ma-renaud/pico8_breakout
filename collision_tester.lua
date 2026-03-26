@@ -5,6 +5,8 @@ function _init()
     poke(0x5f2d, 1)
 
     init()
+    pad.x = 125-pad.w
+    pad.y = 70
 
     ball_dir = 1
     ball_paused = true
@@ -72,6 +74,7 @@ function _update()
     end
 
     if not ball_paused then
+        move_pad()
         move_ball()
     end
 end
